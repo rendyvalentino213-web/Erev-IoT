@@ -86,7 +86,9 @@ export default function App() {
       recognitionRef.current.onerror = (event: any) => {
         console.error("Speech error", event.error);
         setIsListening(false);
-        if (event.error !== 'no-speech') {
+        if (event.error === 'no-speech') {
+            addLog(`❌ Tidak dapat mendengar suara.`);
+        } else {
             addLog(`❌ Error Suara: ${event.error}`);
         }
       };
