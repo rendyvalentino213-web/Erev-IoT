@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Power, PowerOff, Cpu, Wifi, Play, Square, Zap } from 'lucide-react';
+import { Power, PowerOff, Cpu, Wifi, Square, Zap, Link } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface Relay {
@@ -18,9 +18,34 @@ export default function App() {
   ]);
 
   const [variasiMode, setVariasiMode] = useState<number>(0);
+  const [espIp, setEspIp] = useState<string>('192.168.1.100'); // Default IP ESP32
+  const [isConnecting, setIsConnecting] = useState(false);
   const variasiStepRef = useRef(0);
 
-  // Simulation of Variation patterns
+  // Fungsi untuk mengirim perintah/request ke ESP32
+  const sendCommand = async (path: string) => {
+    if (!espIp) {
+      alert("Masukkan IP ESP32 terlebih dahulu!");
+      return;
+    }
+    
+    setIsConnecting(true);
+    try {
+      // Mengirim HTTP GET request ke Web Server ESP32
+      const response = await fetch(`http://${espIp}${path}`, {
+        method: 'GET',
+        mode: 'cors'
+      });
+      if (!response.ok) throw new Error("Gagal merespon");
+    } catch (error) {
+      console.error("Gagal terhubung ke ESP32:", error);
+      alert(`Gagal terhubung ke ESP32 di IP http://${espIp}. \n\nPastikan:\n1. Laptop/HP dan ESP32 di jaringan WiFi yang sama.\n2. Alamat IP ESP32 sudah benar.\n3. Jika di Web URL ini menggunakan "https", fitur blokir Mixed Content (gembok) di browser harus diizinkan untuk HTTP.`);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // Simulation of Variation patterns (Frontend Display)
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
@@ -33,7 +58,7 @@ export default function App() {
           isOn: r.id === pattern[variasiStepRef.current]
         })));
         variasiStepRef.current = (variasiStepRef.current + 1) % pattern.length;
-      }, 500); // 500ms for browser visual representation (50ms is too fast for UI)
+      }, 500);
     } else if (variasiMode === 2) {
       // Variasi 2 - 1->2->3->4->3->2
       const pattern = [1, 2, 3, 4, 3, 2];
@@ -51,52 +76,68 @@ export default function App() {
 
   const toggleRelay = (id: number) => {
     setVariasiMode(0); // Stop variasi on manual interaction
-    setRelays(prev => 
-      prev.map(relay => 
-        relay.id === id ? { ...relay, isOn: !relay.isOn } : relay
-      )
-    );
+    const relay = relays.find(r => r.id === id);
+    if (!relay) return;
+    
+    const newState = !relay.isOn;
+    setRelays(prev => prev.map(r => r.id === id ? { ...r, isOn: newState } : r));
+    
+    // Kirim perintah ke ESP32
+    sendCommand(`/relay?id=${id}&state=${newState ? 'on' : 'off'}`);
   };
 
   const setAll = (state: boolean) => {
     setVariasiMode(0);
     setRelays(prev => prev.map(r => ({ ...r, isOn: state })));
+    sendCommand(`/all?state=${state ? 'on' : 'off'}`);
   };
 
   const startVariasi = (mode: number) => {
     variasiStepRef.current = 0;
     setVariasiMode(mode);
+    sendCommand(`/variasi?mode=${mode}`);
   };
 
   const stopVariasi = () => {
     setVariasiMode(0);
-    setAll(false);
+    setRelays(prev => prev.map(r => ({ ...r, isOn: false })));
+    sendCommand('/stop');
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-[#CD5050] selection:text-white">
+    <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-[#CD5050] selection:text-white pb-12">
       {/* Header */}
       <header className="border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-[#CD5050]/10 rounded-xl">
               <Cpu className="w-6 h-6 text-[#CD5050]" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">ESP32 Relay Controller</h1>
-              <p className="text-sm font-medium text-gray-500 flex items-center gap-2 mt-1">
-                <Wifi className="w-4 h-4" /> 192.168.x.x (Local Network)
-              </p>
+              <h1 className="text-xl font-bold tracking-tight text-gray-900">ESP32 Controller</h1>
             </div>
           </div>
-          <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-100">
-            <span className="relative flex h-3 w-3">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${variasiMode !== 0 ? 'bg-purple-500' : 'bg-[#CD5050]'}`}></span>
-              <span className={`relative inline-flex rounded-full h-3 w-3 ${variasiMode !== 0 ? 'bg-purple-500' : 'bg-[#CD5050]'}`}></span>
-            </span>
-            <span className="text-sm font-semibold text-gray-700 tracking-wide">
-              {variasiMode === 1 ? 'VARIASI 1 RUNNING' : variasiMode === 2 ? 'VARIASI 2 RUNNING' : 'SYSTEM ONLINE'}
-            </span>
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-1.5 focus-within:border-[#CD5050] focus-within:ring-2 focus-within:ring-[#CD5050]/20 transition-all">
+              <Link className="w-4 h-4 text-gray-400 mr-2" />
+              <input 
+                type="text" 
+                value={espIp}
+                onChange={(e) => setEspIp(e.target.value)}
+                placeholder="IP ESP32 (ex: 192.168.1.100)"
+                className="bg-transparent border-none outline-none text-sm font-medium text-gray-700 w-44"
+              />
+            </div>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${isConnecting ? 'bg-orange-50 border-orange-100' : 'bg-gray-50 border-gray-100'}`}>
+              <span className="relative flex h-3 w-3">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${variasiMode !== 0 ? 'bg-purple-500' : 'bg-[#CD5050]'}`}></span>
+                <span className={`relative inline-flex rounded-full h-3 w-3 ${variasiMode !== 0 ? 'bg-purple-500' : 'bg-[#CD5050]'}`}></span>
+              </span>
+              <span className="text-xs font-semibold text-gray-700 tracking-wide whitespace-nowrap">
+                {isConnecting ? 'MENGIRIM...' : variasiMode === 1 ? 'VARIASI 1 JALAN' : variasiMode === 2 ? 'VARIASI 2 JALAN' : 'Sistem Siap'}
+              </span>
+            </div>
           </div>
         </div>
       </header>
