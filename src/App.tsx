@@ -59,71 +59,136 @@ export default function App() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {relays.map((relay, index) => (
-            <motion.div 
-              key={relay.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-              className={`relative overflow-hidden p-6 rounded-3xl border-2 transition-all duration-300 ${
-                relay.isOn 
-                  ? 'border-[#CD5050] bg-red-50/20 shadow-lg shadow-red-100/50' 
-                  : 'border-gray-200 bg-white hover:border-gray-300 shadow-sm'
-              }`}
-            >
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{relay.name}</h3>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-mono font-medium">
-                      GPIO {relay.pin}
+          {relays.map((relay, index) => {
+            const isVariation1 = index < 2;
+
+            if (isVariation1) {
+              return (
+                <motion.div 
+                  key={relay.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                  className={`relative overflow-hidden p-6 rounded-3xl border-2 transition-all duration-300 ${
+                    relay.isOn 
+                      ? 'border-[#CD5050] bg-red-50/20 shadow-lg shadow-red-100/50' 
+                      : 'border-gray-200 bg-white hover:border-gray-300 shadow-sm'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-8">
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{relay.name}</h3>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-mono font-medium">
+                          GPIO {relay.pin}
+                        </span>
+                        <span className="px-2.5 py-1 bg-gray-50 text-gray-400 rounded-md text-xs font-medium border border-gray-100">
+                          Variasi 1
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <motion.div 
+                      layout
+                      className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                        relay.isOn 
+                          ? 'bg-[#CD5050]/10 text-[#CD5050] border-[#CD5050]/20' 
+                          : 'bg-gray-100 text-gray-500 border-gray-200'
+                      }`}
+                    >
+                      {relay.isOn ? 'Active' : 'Offline'}
+                    </motion.div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-auto">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Status</span>
+                      <span className={`text-xl font-bold ${relay.isOn ? 'text-[#CD5050]' : 'text-gray-400'}`}>
+                        {relay.isOn ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                    
+                    <button
+                      onClick={() => toggleRelay(relay.id)}
+                      className={`relative flex items-center justify-center h-14 px-8 rounded-2xl font-semibold transition-all duration-300 active:scale-95 group ${
+                        relay.isOn
+                          ? 'bg-white text-[#CD5050] border-2 border-[#CD5050] hover:bg-red-50'
+                          : 'bg-[#CD5050] text-white hover:bg-[#b54646] hover:shadow-lg hover:shadow-red-200/50'
+                      }`}
+                    >
+                      {relay.isOn ? (
+                        <>
+                          <PowerOff className="w-5 h-5 mr-2" />
+                          Turn OFF
+                        </>
+                      ) : (
+                        <>
+                          <Power className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                          Turn ON
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // Variasi 2: Minimalist Toggle Card
+            return (
+              <motion.div 
+                key={relay.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.1 }}
+                className={`relative flex flex-col justify-center overflow-hidden p-6 rounded-3xl transition-all duration-300 ${
+                  relay.isOn 
+                    ? 'bg-[#CD5050] shadow-lg shadow-red-200/50 text-white' 
+                    : 'bg-gray-50 border border-gray-100 hover:bg-gray-100 text-gray-900 shadow-sm'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full h-full">
+                  <div className="flex items-center gap-5">
+                    <div className={`p-4 rounded-2xl transition-colors duration-300 ${relay.isOn ? 'bg-white/20' : 'bg-white shadow-sm border border-gray-200'}`}>
+                      <Power className={`w-7 h-7 ${relay.isOn ? 'text-white' : 'text-gray-400'}`} />
+                    </div>
+                    <div>
+                      <div className="flex gap-2 items-center mb-1">
+                         <h3 className="text-2xl font-bold tracking-tight">{relay.name}</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-mono font-medium ${relay.isOn ? 'text-red-100' : 'text-gray-500'}`}>
+                          GPIO {relay.pin}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${relay.isOn ? 'bg-black/10 border-black/10 text-white' : 'bg-gray-200 border-gray-200 text-gray-500'}`}>
+                          Variasi 2
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={`text-xs font-bold uppercase tracking-wider ${relay.isOn ? 'text-red-100' : 'text-gray-400'}`}>
+                      {relay.isOn ? 'ON' : 'OFF'}
                     </span>
+                    <button
+                      onClick={() => toggleRelay(relay.id)}
+                      className={`relative w-16 h-9 rounded-full transition-colors duration-300 focus:outline-none ${
+                        relay.isOn ? 'bg-white' : 'bg-gray-300'
+                      }`}
+                    >
+                      <motion.div
+                        className={`absolute top-1 left-1 w-7 h-7 rounded-full shadow-sm ${
+                          relay.isOn ? 'bg-[#CD5050]' : 'bg-white'
+                        }`}
+                        animate={{ x: relay.isOn ? 28 : 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    </button>
                   </div>
                 </div>
-                
-                <motion.div 
-                  layout
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${
-                    relay.isOn 
-                      ? 'bg-[#CD5050]/10 text-[#CD5050] border-[#CD5050]/20' 
-                      : 'bg-gray-100 text-gray-500 border-gray-200'
-                  }`}
-                >
-                  {relay.isOn ? 'Active' : 'Offline'}
-                </motion.div>
-              </div>
-
-              <div className="flex items-center justify-between mt-auto">
-                <div className="flex flex-col">
-                  <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Status</span>
-                  <span className={`text-xl font-bold ${relay.isOn ? 'text-[#CD5050]' : 'text-gray-400'}`}>
-                    {relay.isOn ? 'ON' : 'OFF'}
-                  </span>
-                </div>
-                
-                <button
-                  onClick={() => toggleRelay(relay.id)}
-                  className={`relative flex items-center justify-center h-14 px-8 rounded-2xl font-semibold transition-all duration-300 active:scale-95 group ${
-                    relay.isOn
-                      ? 'bg-white text-[#CD5050] border-2 border-[#CD5050] hover:bg-red-50'
-                      : 'bg-[#CD5050] text-white hover:bg-[#b54646] hover:shadow-lg hover:shadow-red-200/50'
-                  }`}
-                >
-                  {relay.isOn ? (
-                    <>
-                      <PowerOff className="w-5 h-5 mr-2" />
-                      Turn OFF
-                    </>
-                  ) : (
-                    <>
-                      <Power className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                      Turn ON
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       </main>
     </div>
