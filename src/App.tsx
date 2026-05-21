@@ -141,20 +141,59 @@ export default function App() {
     }
   };
 
-  // Simulate DHT11 for UI display
+  // Fetch Status from ESP32 every 1.5 seconds
   useEffect(() => {
-    const dhtInterval = setInterval(() => {
-      setTemperature(prev => {
-        const val = prev === 0 ? 28.5 : prev + (Math.random() * 0.4 - 0.2);
-        return Number(val.toFixed(1));
-      });
-      setHumidity(prev => {
-        const val = prev === 0 ? 60 : prev + (Math.random() * 2 - 1);
-        return Number(val.toFixed(1));
-      });
-    }, 5000);
-    return () => clearInterval(dhtInterval);
-  }, []);
+    let syncInterval: NodeJS.Timeout;
+    
+    const fetchSync = async () => {
+      if (!espIp || espIp.trim() === '') return;
+      try {
+        const response = await fetch(`http://${espIp}/sync`);
+        if (response.ok) {
+          const data = await response.json();
+          setTemperature(data.temperature);
+          setHumidity(data.humidity);
+          
+          setVariasiMode(prevMode => {
+            if (data.variasiMode !== prevMode) {
+              if (data.variasiMode !== 0) variasiStepRef.current = 0;
+              return data.variasiMode;
+            }
+            return prevMode;
+          });
+
+          // Sync relays if variasi is not running dynamically
+          if (data.variasiMode === 0) {
+            setRelays(prev => {
+              const needsUpdate = 
+                prev[0].isOn !== (data.r1 === 1) ||
+                prev[1].isOn !== (data.r2 === 1) ||
+                prev[2].isOn !== (data.r3 === 1) ||
+                prev[3].isOn !== (data.r4 === 1);
+                
+              if (needsUpdate) {
+                return [
+                  { ...prev[0], isOn: data.r1 === 1 },
+                  { ...prev[1], isOn: data.r2 === 1 },
+                  { ...prev[2], isOn: data.r3 === 1 },
+                  { ...prev[3], isOn: data.r4 === 1 },
+                ];
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (e) {
+        // Silent fail for polling errors
+      }
+    };
+
+    if (espIp) {
+      syncInterval = setInterval(fetchSync, 1000);
+    }
+    
+    return () => clearInterval(syncInterval);
+  }, [espIp]);
 
   const sendCommand = async (path: string) => {
     if (!espIp || espIp.trim() === '') {
@@ -186,7 +225,7 @@ export default function App() {
           isOn: r.id === pattern[variasiStepRef.current]
         })));
         variasiStepRef.current = (variasiStepRef.current + 1) % pattern.length;
-      }, 500);
+      }, 150);
     } else if (variasiMode === 2) {
       const pattern = [1, 2, 3, 4, 3, 2];
       interval = setInterval(() => {
@@ -195,7 +234,7 @@ export default function App() {
           isOn: r.id === pattern[variasiStepRef.current]
         })));
         variasiStepRef.current = (variasiStepRef.current + 1) % pattern.length;
-      }, 500);
+      }, 150);
     }
 
     return () => clearInterval(interval);

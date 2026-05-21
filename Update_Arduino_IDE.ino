@@ -50,7 +50,7 @@ bool variasiRunning = false;
 int variasiMode = 0;
 unsigned long lastVariasiTime = 0;
 int variasiStep = 0;
-const int variasiDelay = 50;
+const int variasiDelay = 150;
 
 // Fungsi untuk mengizinkan akses dari website (CORS)
 void enableCORS() {
@@ -121,20 +121,27 @@ void handleStop() {
   server.send(200, "text/plain", "OK");
 }
 
-void handleDHT() {
+void handleSync() {
   enableCORS();
   float t = dht.readTemperature();
   float h = dht.readHumidity();
-  // Validasi jika gagal membaca
   if (isnan(t) || isnan(h)) {
     t = 0.0;
     h = 0.0;
   }
-  String json = "{\"temperature\": " + String(t) + ", \"humidity\": " + String(h) + "}";
+  
+  String json = "{";
+  json += "\"temperature\":" + String(t) + ",";
+  json += "\"humidity\":" + String(h) + ",";
+  json += "\"variasiMode\":" + String(variasiRunning ? variasiMode : 0) + ",";
+  json += "\"r1\":" + String(relay1State == LOW ? 1 : 0) + ",";
+  json += "\"r2\":" + String(relay2State == LOW ? 1 : 0) + ",";
+  json += "\"r3\":" + String(relay3State == LOW ? 1 : 0) + ",";
+  json += "\"r4\":" + String(relay4State == LOW ? 1 : 0);
+  json += "}";
   server.send(200, "application/json", json);
 }
 
-// Logic Telegram Original
 void handleNewMessages(int numNewMessages) {
   for (int i=0; i<numNewMessages; i++) {
     String chat_id = String(bot.messages[i].chat_id);
@@ -249,9 +256,8 @@ void runVariasi2() {
       case 3: digitalWrite(RELAY4, LOW); relay4State = LOW; break;
       case 4: digitalWrite(RELAY3, LOW); relay3State = LOW; break;
       case 5: digitalWrite(RELAY2, LOW); relay2State = LOW; break;
-      case 6: digitalWrite(RELAY1, LOW); relay1State = LOW; break;
     }
-    variasiStep++; if (variasiStep > 6) variasiStep = 0;
+    variasiStep++; if (variasiStep > 5) variasiStep = 0;
   }
 }
 
@@ -291,7 +297,7 @@ void setup() {
   server.on("/all", handleAll);
   server.on("/variasi", handleVariasi);
   server.on("/stop", handleStop);
-  server.on("/dht", handleDHT); 
+  server.on("/sync", handleSync); 
   
   // Tangani error jika routing tidak ada
   server.onNotFound([]() {
