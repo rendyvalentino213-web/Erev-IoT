@@ -2,6 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import { Power, PowerOff, Cpu, Wifi, Square, Zap, Link } from 'lucide-react';
 import { motion } from 'motion/react';
 
+const TELEGRAM_BOT_TOKEN = "8800775876:AAFFksNwh17FMwws13HgTn6jD4MMNp8-UdE";
+const TELEGRAM_CHAT_ID = "8634626398";
+
+const notifyTelegram = async (message: string) => {
+  try {
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message }),
+    });
+  } catch (error) {
+    console.error("Gagal mengirim notifikasi Telegram:", error);
+  }
+};
+
 interface Relay {
   id: number;
   name: string;
@@ -84,24 +100,30 @@ export default function App() {
     
     // Kirim perintah ke ESP32
     sendCommand(`/relay?id=${id}&state=${newState ? 'on' : 'off'}`);
+    
+    // Kirim notifikasi ke Telegram
+    notifyTelegram(`🌐 Notifikasi Web:\n${relay.name} diubah menjadi ${newState ? 'NYALA' : 'MATI'}`);
   };
 
   const setAll = (state: boolean) => {
     setVariasiMode(0);
     setRelays(prev => prev.map(r => ({ ...r, isOn: state })));
     sendCommand(`/all?state=${state ? 'on' : 'off'}`);
+    notifyTelegram(`🌐 Notifikasi Web:\nSemua Lampu diubah menjadi ${state ? 'NYALA' : 'MATI'}`);
   };
 
   const startVariasi = (mode: number) => {
     variasiStepRef.current = 0;
     setVariasiMode(mode);
     sendCommand(`/variasi?mode=${mode}`);
+    notifyTelegram(`🌐 Notifikasi Web:\nVariasi ${mode} secara manual di AKTIFKAN dari Web.`);
   };
 
   const stopVariasi = () => {
     setVariasiMode(0);
     setRelays(prev => prev.map(r => ({ ...r, isOn: false })));
     sendCommand('/stop');
+    notifyTelegram(`🌐 Notifikasi Web:\nVariasi DIHENTIKAN dari Web. Semua lampu MATI.`);
   };
 
   return (
