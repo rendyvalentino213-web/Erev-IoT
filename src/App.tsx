@@ -264,28 +264,32 @@ export default function App() {
 
     try {
         const controller = new AbortController();
-        // ESP32 WebServer is single-threaded and might be blocked by Telegram polling for 3-5 seconds.
-        // We set 3 seconds timeout. If it times out, the ESP32 probably received it but hasn't closed the socket.
         const timeoutId = setTimeout(() => controller.abort("timeout"), 3000); 
         
         const response = await fetch(url, {
             method: 'GET',
-            mode: 'no-cors', // Avoids OPTIONS preflight entirely
+            mode: 'cors', // Kembalikan ke cors untuk status yang jelas
             signal: controller.signal
         });
         clearTimeout(timeoutId);
         
-        // mode no-cors results in opaque response (status 0). We assume success if no network error occurred.
-        success = true;
-    } catch (error: any) {
-        const errMsg = error.message || "";
-        if (errMsg === 'timeout' || error.name === 'AbortError' || errMsg.includes('aborted')) {
-            // Timeout berarti ESP32 butuh waktu lama untuk merespon (biasanya karena sibuk loop Telegram)
-            // Tapi perintah HTTP-nya PASTI sudah masuk. Kita asumsikan Berhasil, agar UI tidak ter-revert.
+        if (response.ok) {
             success = true;
         } else {
             success = false;
-            lastError = errMsg.includes("fetch") || errMsg.includes("NetworkError") ? "Diblokir Browser (Mixed Content). Cek Panduan." : errMsg;
+            lastError = `HTTP ${response.status}`;
+        }
+    } catch (error: any) {
+        const errMsg = String(error.message || error.name || error);
+        if (errMsg === 'timeout' || error.name === 'AbortError' || errMsg.includes('aborted')) {
+            success = true;
+        } else {
+            success = false;
+            if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("network") || error.name === "TypeError") {
+                lastError = "DIBLOKIR BROWSER (Mixed Content)";
+            } else {
+                lastError = errMsg;
+            }
         }
     }
     
@@ -293,7 +297,12 @@ export default function App() {
     setIsConnecting(false);
     
     if (!success) {
-      addLog(`⚠️ Gagal mengirim: ${path}. (Error: ${lastError})`);
+      if (lastError.includes("Mixed Content")) {
+         addLog(`🔒 AKSES DIBLOKIR BROWSER. Karena web berbasis HTTPS, browser menolak akses ke IP Lokal (HTTP).`);
+         addLog(`🛠️ CARA FIX KHUSUS CHROME: Klik iKON GEMBOK 🔒 di samping URL -> Site Settings -> Ubah Insecure Content menjadi Allow -> Reload halaman.`);
+      } else {
+         addLog(`⚠️ Gagal mengirim perintah: ${path}. (${lastError})`);
+      }
     }
     return success;
   };
