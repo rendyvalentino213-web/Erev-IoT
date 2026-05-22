@@ -281,15 +281,13 @@ export default function App() {
         }
     } catch (error: any) {
         const errMsg = String(error.message || error.name || error);
-        if (errMsg === 'timeout' || error.name === 'AbortError' || errMsg.includes('aborted')) {
-            success = true;
+        success = false;
+        if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("network") || error.name === "TypeError") {
+            lastError = "DIBLOKIR BROWSER (Mixed Content) atau ESP32 Tidak Aktif.";
+        } else if (errMsg === 'timeout' || error.name === 'AbortError' || errMsg.includes('aborted')) {
+            lastError = "Koneksi Timeout (Bisa karena IP Salah atau ESP32 Mati)";
         } else {
-            success = false;
-            if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("network") || error.name === "TypeError") {
-                lastError = "DIBLOKIR BROWSER (Mixed Content)";
-            } else {
-                lastError = errMsg;
-            }
+            lastError = errMsg;
         }
     }
     
