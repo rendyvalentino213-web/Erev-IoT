@@ -182,7 +182,6 @@ export default function App() {
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
         
         const response = await fetch(`http://${espIp}/sync?t=${Date.now()}`, {
-          cache: 'no-store',
           signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -254,6 +253,7 @@ export default function App() {
     if (syncControllerRef.current) {
       syncControllerRef.current.abort();
       syncControllerRef.current = null;
+      await new Promise(resolve => setTimeout(resolve, 500)); // Beri waktu ESP32 untuk menutup socket yang digagalkan
     }
     
     const sep = path.includes('?') ? '&' : '?';
@@ -269,7 +269,6 @@ export default function App() {
             const response = await fetch(url, {
                 method: 'GET',
                 mode: 'cors',
-                cache: 'no-store',
                 signal: controller.signal
             });
             clearTimeout(timeoutId);

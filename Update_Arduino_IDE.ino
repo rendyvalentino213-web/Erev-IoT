@@ -64,6 +64,8 @@ unsigned long lastDhtTime = 0;
 void enableCORS() {
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Cache-Control");
+  server.sendHeader("Connection", "close"); // Memaksa socket ditutup agar socket resource tidak habis
 }
 
 // Handler untuk komunikasi Website -> ESP32
