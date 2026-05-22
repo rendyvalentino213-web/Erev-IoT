@@ -6,6 +6,9 @@
  * 1. Kontrol Telegram (Bot Telegram persis seperti aslinya, /start akan berfungsi)
  * 2. Lokal Web Server (Agar Website bisa menekan tombol dan memberi perintah)
  * 3. Sensor DHT11 (Untuk mengecek Suhu & Kelembapan di Pin 4)
+ * 
+ * UPDATE: Menggunakan FreeRTOS (Dual Core) agar Telegram tidak mengganggu / membuat lag Website.
+ * Sensor DHT11 dibaca secara non-blocking setiap 3 detik.
  */
 
 #include <WiFi.h>
@@ -37,7 +40,7 @@ WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
 WebServer server(80); // WebServer untuk komunikasi dengan Website
 
-int botRequestDelay = 2500; // Ditingkatkan ke 2.5 detik agar respon dari Website/Voice tidak delay atau lag
+int botRequestDelay = 2000; 
 unsigned long lastTimeBotRan;
 
 bool relay1State = HIGH;
@@ -51,6 +54,11 @@ int variasiMode = 0;
 unsigned long lastVariasiTime = 0;
 int variasiStep = 0;
 const int variasiDelay = 150;
+
+// Variabel Asynchronous Sensor DHT11 
+float currentTemp = 0.0;
+float currentHum = 0.0;
+unsigned long lastDhtTime = 0;
 
 // Fungsi untuk mengizinkan akses dari website (CORS)
 void enableCORS() {
@@ -67,6 +75,7 @@ void handleRelay() {
     bool state = (stateStr == "on") ? LOW : HIGH; 
     
     variasiRunning = false;
+    variasiMode = 0;
     
     if (id == 1) { relay1State = state; digitalWrite(RELAY1, relay1State); }
     else if (id == 2) { relay2State = state; digitalWrite(RELAY2, relay2State); }
@@ -86,6 +95,8 @@ void handleAll() {
     bool state = (stateStr == "on") ? LOW : HIGH;
     
     variasiRunning = false;
+    variasiMode = 0;
+    
     relay1State = relay2State = relay3State = relay4State = state;
     digitalWrite(RELAY1, state);
     digitalWrite(RELAY2, state);
@@ -113,6 +124,8 @@ void handleVariasi() {
 void handleStop() {
   enableCORS();
   variasiRunning = false;
+  variasiMode = 0;
+  
   relay1State = relay2State = relay3State = relay4State = HIGH;
   digitalWrite(RELAY1, HIGH);
   digitalWrite(RELAY2, HIGH);
@@ -123,16 +136,11 @@ void handleStop() {
 
 void handleSync() {
   enableCORS();
-  float t = dht.readTemperature();
-  float h = dht.readHumidity();
-  if (isnan(t) || isnan(h)) {
-    t = 0.0;
-    h = 0.0;
-  }
   
+  // Data DHT11 diambil dari variabel global secara instant (Tanpa menyebabkan blok)
   String json = "{";
-  json += "\"temperature\":" + String(t) + ",";
-  json += "\"humidity\":" + String(h) + ",";
+  json += "\"temperature\":" + String(currentTemp) + ",";
+  json += "\"humidity\":" + String(currentHum) + ",";
   json += "\"variasiMode\":" + String(variasiRunning ? variasiMode : 0) + ",";
   json += "\"r1\":" + String(relay1State == LOW ? 1 : 0) + ",";
   json += "\"r2\":" + String(relay2State == LOW ? 1 : 0) + ",";
@@ -171,25 +179,25 @@ void handleNewMessages(int numNewMessages) {
       bot.sendMessage(chat_id, welcome, "");
     }
 
-    if (text == "/lampu1_on") { variasiRunning = false; relay1State = LOW; digitalWrite(RELAY1, relay1State); bot.sendMessage(chat_id, "Lampu 1 NYALA", ""); }
-    if (text == "/lampu1_off") { variasiRunning = false; relay1State = HIGH; digitalWrite(RELAY1, relay1State); bot.sendMessage(chat_id, "Lampu 1 MATI", ""); }
+    if (text == "/lampu1_on") { variasiRunning = false; variasiMode = 0; relay1State = LOW; digitalWrite(RELAY1, relay1State); bot.sendMessage(chat_id, "Lampu 1 NYALA", ""); }
+    if (text == "/lampu1_off") { variasiRunning = false; variasiMode = 0; relay1State = HIGH; digitalWrite(RELAY1, relay1State); bot.sendMessage(chat_id, "Lampu 1 MATI", ""); }
     
-    if (text == "/lampu2_on") { variasiRunning = false; relay2State = LOW; digitalWrite(RELAY2, relay2State); bot.sendMessage(chat_id, "Lampu 2 NYALA", ""); }
-    if (text == "/lampu2_off") { variasiRunning = false; relay2State = HIGH; digitalWrite(RELAY2, relay2State); bot.sendMessage(chat_id, "Lampu 2 MATI", ""); }
+    if (text == "/lampu2_on") { variasiRunning = false; variasiMode = 0; relay2State = LOW; digitalWrite(RELAY2, relay2State); bot.sendMessage(chat_id, "Lampu 2 NYALA", ""); }
+    if (text == "/lampu2_off") { variasiRunning = false; variasiMode = 0; relay2State = HIGH; digitalWrite(RELAY2, relay2State); bot.sendMessage(chat_id, "Lampu 2 MATI", ""); }
     
-    if (text == "/lampu3_on") { variasiRunning = false; relay3State = LOW; digitalWrite(RELAY3, relay3State); bot.sendMessage(chat_id, "Lampu 3 NYALA", ""); }
-    if (text == "/lampu3_off") { variasiRunning = false; relay3State = HIGH; digitalWrite(RELAY3, relay3State); bot.sendMessage(chat_id, "Lampu 3 MATI", ""); }
+    if (text == "/lampu3_on") { variasiRunning = false; variasiMode = 0; relay3State = LOW; digitalWrite(RELAY3, relay3State); bot.sendMessage(chat_id, "Lampu 3 NYALA", ""); }
+    if (text == "/lampu3_off") { variasiRunning = false; variasiMode = 0; relay3State = HIGH; digitalWrite(RELAY3, relay3State); bot.sendMessage(chat_id, "Lampu 3 MATI", ""); }
     
-    if (text == "/lampu4_on") { variasiRunning = false; relay4State = LOW; digitalWrite(RELAY4, relay4State); bot.sendMessage(chat_id, "Lampu 4 NYALA", ""); }
-    if (text == "/lampu4_off") { variasiRunning = false; relay4State = HIGH; digitalWrite(RELAY4, relay4State); bot.sendMessage(chat_id, "Lampu 4 MATI", ""); }
+    if (text == "/lampu4_on") { variasiRunning = false; variasiMode = 0; relay4State = LOW; digitalWrite(RELAY4, relay4State); bot.sendMessage(chat_id, "Lampu 4 NYALA", ""); }
+    if (text == "/lampu4_off") { variasiRunning = false; variasiMode = 0; relay4State = HIGH; digitalWrite(RELAY4, relay4State); bot.sendMessage(chat_id, "Lampu 4 MATI", ""); }
     
     if (text == "/all_on") {
-      variasiRunning = false; bot.sendMessage(chat_id, "Semua Lampu NYALA", "");
+      variasiRunning = false; variasiMode = 0; bot.sendMessage(chat_id, "Semua Lampu NYALA", "");
       relay1State = relay2State = relay3State = relay4State = LOW;
       digitalWrite(RELAY1, LOW); digitalWrite(RELAY2, LOW); digitalWrite(RELAY3, LOW); digitalWrite(RELAY4, LOW);
     }
     if (text == "/all_off") {
-      variasiRunning = false; bot.sendMessage(chat_id, "Semua Lampu MATI", "");
+      variasiRunning = false; variasiMode = 0; bot.sendMessage(chat_id, "Semua Lampu MATI", "");
       relay1State = relay2State = relay3State = relay4State = HIGH;
       digitalWrite(RELAY1, HIGH); digitalWrite(RELAY2, HIGH); digitalWrite(RELAY3, HIGH); digitalWrite(RELAY4, HIGH);
     }
@@ -202,12 +210,7 @@ void handleNewMessages(int numNewMessages) {
       status += "Lampu 4: " + String(relay4State == LOW ? "NYALA" : "MATI") + "\n";
       status += "Variasi: " + String(variasiRunning ? "RUNNING" : "STOPPED") + "\n";
       
-      // Tambahkan info DHT
-      float t = dht.readTemperature();
-      float h = dht.readHumidity();
-      if(!isnan(t)) {
-        status += "\n🌡️ Suhu: " + String(t) + "°C\n💧 Lembap: " + String(h) + "%";
-      }
+      status += "\n🌡️ Suhu: " + String(currentTemp) + "°C\n💧 Lembap: " + String(currentHum) + "%";
       bot.sendMessage(chat_id, status, "");
     }
 
@@ -261,6 +264,21 @@ void runVariasi2() {
   }
 }
 
+// Task FreeRTOS Telegram di Core 0 agar tidak mengganggu Web/Variasi pada Core 1
+void telegramTask(void * pvParameters) {
+  for(;;) {
+    if (millis() > lastTimeBotRan + botRequestDelay)  {
+      int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+      while(numNewMessages) {
+        handleNewMessages(numNewMessages);
+        numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+      }
+      lastTimeBotRan = millis();
+    }
+    vTaskDelay(10 / portTICK_PERIOD_MS); // Yield ke idle task supaya watchdog tidak error
+  }
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -311,25 +329,38 @@ void setup() {
 
   server.begin();
   Serial.println("HTTP Web Server berjalan");
+  
+  // Memulai Polling Telegram di Thread/Core Terpisah (Core 0) !!
+  xTaskCreatePinnedToCore(
+    telegramTask,       // Fungsi Task
+    "Telegram_Task",    // Nama Task
+    8192,               // Ukuran Stack
+    NULL,               // Parameter
+    1,                  // Prioritas
+    NULL,               // Handle Task
+    0                   // Pin ke Core 0
+  );
 }
 
 void loop() {
-  // 1. Tangani Request dari Website
+  // 1. Tangani Request dari Website secara lancar (Tanpa Lag)
   server.handleClient();
   
-  // 2. Tangani Pola Kedip Variasi
+  // 2. Baca Sensor DHT11 tiap 3 detik tanpa memblokir
+  if (millis() - lastDhtTime >= 3000) {
+     lastDhtTime = millis();
+     float t = dht.readTemperature();
+     float h = dht.readHumidity();
+     if (!isnan(t)) currentTemp = t;
+     if (!isnan(h)) currentHum = h;
+  }
+  
+  // 3. Tangani Pola Kedip Variasi
   if (variasiRunning) {
     if (variasiMode == 1) runVariasi1();
     else if (variasiMode == 2) runVariasi2();
   }
   
-  // 3. Tangani Pesan Bot Telegram
-  if (millis() > lastTimeBotRan + botRequestDelay)  {
-    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-    while(numNewMessages) {
-      handleNewMessages(numNewMessages);
-      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-    }
-    lastTimeBotRan = millis();
-  }
+  // Telegram Bot dihandle oleh FreeRTOS Task (telegramTask) di latar belakang (Background)
 }
+

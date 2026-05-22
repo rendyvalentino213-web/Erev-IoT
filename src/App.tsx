@@ -148,6 +148,8 @@ export default function App() {
     }
   };
 
+  const syncControllerRef = useRef<AbortController | null>(null);
+
   // Fetch Status from ESP32
   useEffect(() => {
     let isMounted = true;
@@ -167,6 +169,7 @@ export default function App() {
       
       try {
         const controller = new AbortController();
+        syncControllerRef.current = controller;
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
         
         const response = await fetch(`http://${espIp}/sync?t=${Date.now()}`, {
@@ -230,6 +233,12 @@ export default function App() {
     setIsConnecting(true);
     isCommandingRef.current = true; // Lock the network thread
     
+    // Abort any ongoing sync request to free up the ESP32
+    if (syncControllerRef.current) {
+      syncControllerRef.current.abort();
+      syncControllerRef.current = null;
+    }
+    
     const sep = path.includes('?') ? '&' : '?';
     const url = `http://${espIp}${path}${sep}t=${Date.now()}`;
 
@@ -288,7 +297,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [variasiMode]);
 
-  const toggleRelay = (id: number, forceState?: boolean) => {
+  const toggleRelay = async (id: number, forceState?: boolean) => {
     setVariasiMode(0); 
     const relay = relays.find(r => r.id === id);
     if (!relay) return;
@@ -296,37 +305,37 @@ export default function App() {
     const newState = forceState !== undefined ? forceState : !relay.isOn;
     setRelays(prev => prev.map(r => r.id === id ? { ...r, isOn: newState } : r));
     
-    sendCommand(`/relay?id=${id}&state=${newState ? 'on' : 'off'}`);
+    await sendCommand(`/relay?id=${id}&state=${newState ? 'on' : 'off'}`);
     
     const msg = `🌐 Notifikasi Web:\n${relay.name} diubah menjadi ${newState ? 'NYALA' : 'MATI'}`;
     notifyTelegram(msg);
     addLog(msg);
   };
 
-  const setAll = (state: boolean) => {
+  const setAll = async (state: boolean) => {
     setVariasiMode(0);
     setRelays(prev => prev.map(r => ({ ...r, isOn: state })));
-    sendCommand(`/all?state=${state ? 'on' : 'off'}`);
+    await sendCommand(`/all?state=${state ? 'on' : 'off'}`);
     
     const msg = `🌐 Notifikasi Web:\nSemua Lampu diubah menjadi ${state ? 'NYALA' : 'MATI'}`;
     notifyTelegram(msg);
     addLog(msg);
   };
 
-  const startVariasi = (mode: number) => {
+  const startVariasi = async (mode: number) => {
     variasiStepRef.current = 0;
     setVariasiMode(mode);
-    sendCommand(`/variasi?mode=${mode}`);
+    await sendCommand(`/variasi?mode=${mode}`);
     
     const msg = `🌐 Notifikasi Web:\nVariasi ${mode} secara manual di AKTIFKAN dari Web.`;
     notifyTelegram(msg);
     addLog(msg);
   };
 
-  const stopVariasi = () => {
+  const stopVariasi = async () => {
     setVariasiMode(0);
     setRelays(prev => prev.map(r => ({ ...r, isOn: false })));
-    sendCommand('/stop');
+    await sendCommand('/stop');
     
     const msg = `🌐 Notifikasi Web:\nVariasi DIHENTIKAN dari Web. Semua lampu MATI.`;
     notifyTelegram(msg);
