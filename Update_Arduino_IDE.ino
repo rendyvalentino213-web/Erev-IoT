@@ -63,9 +63,9 @@ unsigned long lastDhtTime = 0;
 // Fungsi untuk mengizinkan akses dari website (CORS)
 void enableCORS() {
   server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Cache-Control");
-  server.sendHeader("Connection", "close"); // Memaksa socket ditutup agar socket resource tidak habis
+  server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS, POST, PUT");
+  server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Cache-Control, Access-Control-Request-Private-Network");
+  server.sendHeader("Access-Control-Allow-Private-Network", "true");
 }
 
 // Handler untuk komunikasi Website -> ESP32
@@ -84,7 +84,7 @@ void handleRelay() {
     else if (id == 3) { relay3State = state; digitalWrite(RELAY3, relay3State); }
     else if (id == 4) { relay4State = state; digitalWrite(RELAY4, relay4State); }
     
-    server.send(200, "text/plain", "OK");
+    server.send(204); // 204 No Content agar browser tidak menunggu body
   } else {
     server.send(400, "text/plain", "Bad Request");
   }
@@ -104,7 +104,7 @@ void handleAll() {
     digitalWrite(RELAY2, state);
     digitalWrite(RELAY3, state);
     digitalWrite(RELAY4, state);
-    server.send(200, "text/plain", "OK");
+    server.send(204);
   } else {
     server.send(400, "text/plain", "Bad Request");
   }
@@ -117,7 +117,7 @@ void handleVariasi() {
     variasiRunning = true;
     variasiStep = 0;
     lastVariasiTime = millis();
-    server.send(200, "text/plain", "OK");
+    server.send(204);
   } else {
     server.send(400, "text/plain", "Bad Request");
   }
@@ -133,7 +133,7 @@ void handleStop() {
   digitalWrite(RELAY2, HIGH);
   digitalWrite(RELAY3, HIGH);
   digitalWrite(RELAY4, HIGH);
-  server.send(200, "text/plain", "OK");
+  server.send(204);
 }
 
 void handleSync() {

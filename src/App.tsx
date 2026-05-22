@@ -253,7 +253,7 @@ export default function App() {
     if (syncControllerRef.current) {
       syncControllerRef.current.abort();
       syncControllerRef.current = null;
-      await new Promise(resolve => setTimeout(resolve, 500)); // Beri waktu ESP32 untuk menutup socket yang digagalkan
+      await new Promise(resolve => setTimeout(resolve, 100)); // Beri waktu singkat untuk cleanup
     }
     
     const sep = path.includes('?') ? '&' : '?';
@@ -261,30 +261,27 @@ export default function App() {
 
     let lastError = "";
 
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                mode: 'cors',
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            
-            if (response.ok) {
-                setIsConnecting(false);
-                isCommandingRef.current = false;
-                return; // Berhasil!
-            } else {
-                lastError = `HTTP ${response.status}`;
-            }
-        } catch (error: any) {
-            lastError = error.message || "Network Error";
-            // Tunggu sebentar lalu coba lagi, antisipasi ESP sibuk loop Telegram
-            await new Promise(res => setTimeout(res, 1000));
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+            // We get 204 No Content, no body to drain
+            setIsConnecting(false);
+            isCommandingRef.current = false;
+            return true; // Berhasil!
+        } else {
+            lastError = `HTTP ${response.status}`;
         }
+    } catch (error: any) {
+        lastError = error.message.includes("fetch") || error.message.includes("NetworkError") ? "Diblokir Browser (Mixed Content). Cek Panduan." : error.message;
     }
     
     isCommandingRef.current = false;
