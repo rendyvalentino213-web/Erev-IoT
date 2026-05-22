@@ -66,6 +66,7 @@ void enableCORS() {
   server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS, POST, PUT");
   server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Cache-Control, Access-Control-Request-Private-Network");
   server.sendHeader("Access-Control-Allow-Private-Network", "true");
+  server.sendHeader("Connection", "close"); // Force connection close to free sockets
 }
 
 // Handler untuk komunikasi Website -> ESP32
@@ -319,11 +320,11 @@ void setup() {
   bot.sendMessage(CHAT_ID, startupMsg, "");
 
   // Routing URL WebServer untuk Frontend React Web ini
-  server.on("/relay", handleRelay);
-  server.on("/all", handleAll);
-  server.on("/variasi", handleVariasi);
-  server.on("/stop", handleStop);
-  server.on("/sync", handleSync); 
+  server.on("/relay", HTTP_GET, handleRelay);
+  server.on("/all", HTTP_GET, handleAll);
+  server.on("/variasi", HTTP_GET, handleVariasi);
+  server.on("/stop", HTTP_GET, handleStop);
+  server.on("/sync", HTTP_GET, handleSync); 
   
   // Tangani error jika routing tidak ada
   server.onNotFound([]() {
