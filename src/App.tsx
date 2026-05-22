@@ -49,6 +49,7 @@ export default function App() {
   const [variasiMode, setVariasiMode] = useState<number>(0);
   const [espIp, setEspIp] = useState<string>('192.168.1.100');
   const [isConnecting, setIsConnecting] = useState(false);
+  const isCommandingRef = useRef(false);
   const variasiStepRef = useRef(0);
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -80,7 +81,11 @@ export default function App() {
         setIsListening(false);
         const command = event.results[0][0].transcript.toLowerCase();
         addLog(`🎙️ Suara: "${command}"`);
-        processVoiceCommand(command);
+        
+        // Jeda sedikit agar proses memori/mic di HP selesai sebelum mengirim perintah HTTPS/HTTP
+        setTimeout(() => {
+            processVoiceCommand(command);
+        }, 200);
       };
       
       recognitionRef.current.onerror = (event: any) => {
@@ -143,17 +148,34 @@ export default function App() {
     }
   };
 
-  // Fetch Status from ESP32 every 1.5 seconds
+  // Fetch Status from ESP32
   useEffect(() => {
-    let syncInterval: NodeJS.Timeout;
-    
+    let isMounted = true;
+    let syncTimer: NodeJS.Timeout;
+
     const fetchSync = async () => {
-      if (!espIp || espIp.trim() === '') return;
+      // Jika sedang mengirim perintah, skip polling agar tidak tabrakan di single-thread ESP32
+      if (isCommandingRef.current) {
+        if (isMounted) syncTimer = setTimeout(fetchSync, 1000);
+        return;
+      }
+        
+      if (!espIp || espIp.trim() === '') {
+        if (isMounted) syncTimer = setTimeout(fetchSync, 1500);
+        return;
+      }
+      
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+        
         const response = await fetch(`http://${espIp}/sync?t=${Date.now()}`, {
-          cache: 'no-store'
+          cache: 'no-store',
+          signal: controller.signal
         });
-        if (response.ok) {
+        clearTimeout(timeoutId);
+
+        if (response.ok && isMounted && !isCommandingRef.current) {
           const data = await response.json();
           setTemperature(data.temperature);
           setHumidity(data.humidity);
@@ -189,35 +211,55 @@ export default function App() {
         }
       } catch (e) {
         // Silent fail for polling errors
+      } finally {
+        if (isMounted) syncTimer = setTimeout(fetchSync, 2000); // Wait 2s to give ESP room
       }
     };
 
-    if (espIp) {
-      syncInterval = setInterval(fetchSync, 1000);
-    }
+    fetchSync();
     
-    return () => clearInterval(syncInterval);
+    return () => { 
+      isMounted = false; 
+      clearTimeout(syncTimer); 
+    };
   }, [espIp]);
 
-  const sendCommand = async (path: string) => {
-    if (!espIp || espIp.trim() === '') {
-      return; 
-    }
+  const sendCommand = async (path: string, maxRetries = 3) => {
+    if (!espIp || espIp.trim() === '') return;
     
     setIsConnecting(true);
-    try {
-      const sep = path.includes('?') ? '&' : '?';
-      const response = await fetch(`http://${espIp}${path}${sep}t=${Date.now()}`, {
-        method: 'GET',
-        mode: 'cors',
-        cache: 'no-store'
-      });
-      if (!response.ok) throw new Error("Gagal merespon");
-    } catch (error) {
-      console.error("Gagal terhubung ke ESP32:", error);
-    } finally {
-      setIsConnecting(false);
+    isCommandingRef.current = true; // Lock the network thread
+    
+    const sep = path.includes('?') ? '&' : '?';
+    const url = `http://${espIp}${path}${sep}t=${Date.now()}`;
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-store',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                setIsConnecting(false);
+                isCommandingRef.current = false;
+                return; // Berhasil!
+            }
+        } catch (error) {
+            // Tunggu sebentar lalu coba lagi, antisipasi ESP sibuk loop Telegram
+            await new Promise(res => setTimeout(res, 800));
+        }
     }
+    
+    isCommandingRef.current = false;
+    setIsConnecting(false);
+    addLog(`⚠️ Gagal mengirim: ${path}. ESP32 sibuk.`);
   };
 
   useEffect(() => {

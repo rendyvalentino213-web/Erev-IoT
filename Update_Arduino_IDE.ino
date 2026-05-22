@@ -37,7 +37,7 @@ WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
 WebServer server(80); // WebServer untuk komunikasi dengan Website
 
-int botRequestDelay = 1000;
+int botRequestDelay = 2500; // Ditingkatkan ke 2.5 detik agar respon dari Website/Voice tidak delay atau lag
 unsigned long lastTimeBotRan;
 
 bool relay1State = HIGH;
