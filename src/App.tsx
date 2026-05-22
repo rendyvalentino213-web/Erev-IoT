@@ -150,7 +150,9 @@ export default function App() {
     const fetchSync = async () => {
       if (!espIp || espIp.trim() === '') return;
       try {
-        const response = await fetch(`http://${espIp}/sync`);
+        const response = await fetch(`http://${espIp}/sync?t=${Date.now()}`, {
+          cache: 'no-store'
+        });
         if (response.ok) {
           const data = await response.json();
           setTemperature(data.temperature);
@@ -204,9 +206,11 @@ export default function App() {
     
     setIsConnecting(true);
     try {
-      const response = await fetch(`http://${espIp}${path}`, {
+      const sep = path.includes('?') ? '&' : '?';
+      const response = await fetch(`http://${espIp}${path}${sep}t=${Date.now()}`, {
         method: 'GET',
-        mode: 'cors'
+        mode: 'cors',
+        cache: 'no-store'
       });
       if (!response.ok) throw new Error("Gagal merespon");
     } catch (error) {
