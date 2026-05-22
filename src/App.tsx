@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Power, PowerOff, Cpu, Square, Zap, Link, Mic, MicOff, Thermometer, Droplets, Activity } from 'lucide-react';
+import { Power, PowerOff, Cpu, Square, Zap, Link, Mic, MicOff, Thermometer, Droplets, Activity, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 
 declare global {
@@ -290,6 +290,7 @@ export default function App() {
     isCommandingRef.current = false;
     setIsConnecting(false);
     addLog(`⚠️ Gagal mengirim: ${path}. (Error: ${lastError})`);
+    return false;
   };
 
   useEffect(() => {
@@ -324,43 +325,73 @@ export default function App() {
     if (!relay) return;
     
     const newState = forceState !== undefined ? forceState : !relay.isOn;
+    
+    // Update local state temporarily
     setRelays(prev => prev.map(r => r.id === id ? { ...r, isOn: newState } : r));
     
-    await sendCommand(`/relay?id=${id}&state=${newState ? 'on' : 'off'}`);
+    const success = await sendCommand(`/relay?id=${id}&state=${newState ? 'on' : 'off'}`);
     
-    const msg = `🌐 Notifikasi Web:\n${relay.name} diubah menjadi ${newState ? 'NYALA' : 'MATI'}`;
-    notifyTelegram(msg);
-    addLog(msg);
+    if (success) {
+      const msg = `🌐 Notifikasi Web:\n${relay.name} diubah menjadi ${newState ? 'NYALA' : 'MATI'}`;
+      notifyTelegram(msg);
+      addLog(msg);
+    } else {
+      // Revert if failed
+      setRelays(prev => prev.map(r => r.id === id ? { ...r, isOn: !newState } : r));
+      addLog(`❌ Batal: ESP32 tidak bisa dihubungi, pastikan IP Address benar.`);
+    }
   };
 
   const setAll = async (state: boolean) => {
     setVariasiMode(0);
-    setRelays(prev => prev.map(r => ({ ...r, isOn: state })));
-    await sendCommand(`/all?state=${state ? 'on' : 'off'}`);
+    const oldRelays = [...relays]; // backup for reverting
     
-    const msg = `🌐 Notifikasi Web:\nSemua Lampu diubah menjadi ${state ? 'NYALA' : 'MATI'}`;
-    notifyTelegram(msg);
-    addLog(msg);
+    setRelays(prev => prev.map(r => ({ ...r, isOn: state })));
+    const success = await sendCommand(`/all?state=${state ? 'on' : 'off'}`);
+    
+    if (success) {
+      const msg = `🌐 Notifikasi Web:\nSemua Lampu diubah menjadi ${state ? 'NYALA' : 'MATI'}`;
+      notifyTelegram(msg);
+      addLog(msg);
+    } else {
+      setRelays(oldRelays);
+      addLog(`❌ Batal: ESP32 tidak bisa dihubungi, pastikan IP Address benar.`);
+    }
   };
 
   const startVariasi = async (mode: number) => {
+    const backupMode = variasiMode;
     variasiStepRef.current = 0;
     setVariasiMode(mode);
-    await sendCommand(`/variasi?mode=${mode}`);
+    const success = await sendCommand(`/variasi?mode=${mode}`);
     
-    const msg = `🌐 Notifikasi Web:\nVariasi ${mode} secara manual di AKTIFKAN dari Web.`;
-    notifyTelegram(msg);
-    addLog(msg);
+    if (success) {
+      const msg = `🌐 Notifikasi Web:\nVariasi ${mode} secara manual di AKTIFKAN dari Web.`;
+      notifyTelegram(msg);
+      addLog(msg);
+    } else {
+      setVariasiMode(backupMode);
+      addLog(`❌ Batal: ESP32 tidak bisa dihubungi, pastikan IP Address benar.`);
+    }
   };
 
   const stopVariasi = async () => {
+    const backupMode = variasiMode;
+    const backupRelays = [...relays];
+    
     setVariasiMode(0);
     setRelays(prev => prev.map(r => ({ ...r, isOn: false })));
-    await sendCommand('/stop');
+    const success = await sendCommand('/stop');
     
-    const msg = `🌐 Notifikasi Web:\nVariasi DIHENTIKAN dari Web. Semua lampu MATI.`;
-    notifyTelegram(msg);
-    addLog(msg);
+    if (success) {
+      const msg = `🌐 Notifikasi Web:\nVariasi DIHENTIKAN dari Web. Semua lampu MATI.`;
+      notifyTelegram(msg);
+      addLog(msg);
+    } else {
+      setVariasiMode(backupMode);
+      setRelays(backupRelays);
+      addLog(`❌ Batal: ESP32 tidak bisa dihubungi, pastikan IP Address benar.`);
+    }
   };
 
   return (
@@ -403,6 +434,20 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {espIp === '192.168.1.100' && (
+          <div className="mb-6 bg-orange-50 border border-orange-200 p-4 rounded-2xl flex items-start gap-4">
+            <AlertCircle className="w-6 h-6 text-orange-500 mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-orange-900">Perhatian: IP Address Belum Diubah!</h3>
+              <p className="text-sm text-orange-800 mt-1">
+                <code>192.168.1.100</code> adalah IP Address bawaan (default). Jika WiFi Anda tidak menggunakan IP ini, <b>tombol web tidak akan berfungsi</b> dan hanya akan loading gagal.
+                <br/><br/>
+                <b>Solusi:</b> Silakan cek notifikasi aplikasi <b>Telegram</b> Anda saat ESP32 pertama kali dihidupkan untuk melihat IP Address aslinya (contoh: <code>172.x.x.x</code> atau <code>192.x.x.x</code>), lalu masukkan ke kolom input IP di atas agar web terhubung ke hardware.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           
           {/* Left Column: UI Controls & Sensors */}

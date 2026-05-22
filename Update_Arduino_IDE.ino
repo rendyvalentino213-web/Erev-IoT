@@ -312,6 +312,12 @@ void setup() {
   Serial.print("IP Address untuk Web: ");
   Serial.println(WiFi.localIP());
 
+  // Kirim notifikasi IP ke Telegram agar pengguna tahu
+  String startupMsg = "✅ Sistem Berhasil Booting!\n";
+  startupMsg += "🌐 IP Address Anda: " + WiFi.localIP().toString() + "\n";
+  startupMsg += "Silakan masukkan IP ini ke kolom IP Address di Website agar tombol web berfungsi!";
+  bot.sendMessage(CHAT_ID, startupMsg, "");
+
   // Routing URL WebServer untuk Frontend React Web ini
   server.on("/relay", handleRelay);
   server.on("/all", handleAll);
