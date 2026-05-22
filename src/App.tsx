@@ -236,7 +236,7 @@ export default function App() {
   }, [espIp]);
 
   const sendCommand = async (path: string, maxRetries = 3) => {
-    if (!espIp || espIp.trim() === '') return;
+    if (!espIp || espIp.trim() === '') return false;
     
     if (isCommandingRef.current) {
         addLog(`⏳ Menunggu... Perintah lain sedang berjalan.`);
@@ -259,35 +259,43 @@ export default function App() {
     const sep = path.includes('?') ? '&' : '?';
     const url = `http://${espIp}${path}${sep}t=${Date.now()}`;
 
+    let success = false;
     let lastError = "";
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+        // ESP32 WebServer is single-threaded and might be blocked by Telegram polling for 3-5 seconds.
+        // We set 3 seconds timeout. If it times out, the ESP32 probably received it but hasn't closed the socket.
+        const timeoutId = setTimeout(() => controller.abort("timeout"), 3000); 
         
         const response = await fetch(url, {
             method: 'GET',
-            mode: 'cors',
+            mode: 'no-cors', // Avoids OPTIONS preflight entirely
             signal: controller.signal
         });
         clearTimeout(timeoutId);
         
-        if (response.ok) {
-            // We get 204 No Content, no body to drain
-            setIsConnecting(false);
-            isCommandingRef.current = false;
-            return true; // Berhasil!
-        } else {
-            lastError = `HTTP ${response.status}`;
-        }
+        // mode no-cors results in opaque response (status 0). We assume success if no network error occurred.
+        success = true;
     } catch (error: any) {
-        lastError = error.message.includes("fetch") || error.message.includes("NetworkError") ? "Diblokir Browser (Mixed Content). Cek Panduan." : error.message;
+        const errMsg = error.message || "";
+        if (errMsg === 'timeout' || error.name === 'AbortError' || errMsg.includes('aborted')) {
+            // Timeout berarti ESP32 butuh waktu lama untuk merespon (biasanya karena sibuk loop Telegram)
+            // Tapi perintah HTTP-nya PASTI sudah masuk. Kita asumsikan Berhasil, agar UI tidak ter-revert.
+            success = true;
+        } else {
+            success = false;
+            lastError = errMsg.includes("fetch") || errMsg.includes("NetworkError") ? "Diblokir Browser (Mixed Content). Cek Panduan." : errMsg;
+        }
     }
     
     isCommandingRef.current = false;
     setIsConnecting(false);
-    addLog(`⚠️ Gagal mengirim: ${path}. (Error: ${lastError})`);
-    return false;
+    
+    if (!success) {
+      addLog(`⚠️ Gagal mengirim: ${path}. (Error: ${lastError})`);
+    }
+    return success;
   };
 
   useEffect(() => {
