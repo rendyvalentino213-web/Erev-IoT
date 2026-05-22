@@ -179,7 +179,7 @@ export default function App() {
       try {
         const controller = new AbortController();
         syncControllerRef.current = controller;
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
         
         const response = await fetch(`http://${espIp}/sync?t=${Date.now()}`, {
           cache: 'no-store',
@@ -241,8 +241,10 @@ export default function App() {
     
     if (isCommandingRef.current) {
         addLog(`⏳ Menunggu... Perintah lain sedang berjalan.`);
-        // Optional: you can implement a queue, but simple delay for now.
-        await new Promise(res => setTimeout(res, 1000)); 
+        for (let w = 0; w < 15; w++) {
+            await new Promise(res => setTimeout(res, 200));
+            if (!isCommandingRef.current) break;
+        }
     }
     
     setIsConnecting(true);
@@ -262,7 +264,7 @@ export default function App() {
     for (let i = 0; i < maxRetries; i++) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
             
             const response = await fetch(url, {
                 method: 'GET',
