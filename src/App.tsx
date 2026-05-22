@@ -77,9 +77,18 @@ export default function App() {
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
 
+      let lastVoiceCmdTime = 0;
       recognitionRef.current.onresult = (event: any) => {
         setIsListening(false);
         const command = event.results[0][0].transcript.toLowerCase();
+        
+        const now = Date.now();
+        if (now - lastVoiceCmdTime < 2000) {
+            console.log("Voice command debounced:", command);
+            return;
+        }
+        lastVoiceCmdTime = now;
+        
         addLog(`🎙️ Suara: "${command}"`);
         
         // Jeda sedikit agar proses memori/mic di HP selesai sebelum mengirim perintah HTTPS/HTTP
@@ -230,6 +239,12 @@ export default function App() {
   const sendCommand = async (path: string, maxRetries = 3) => {
     if (!espIp || espIp.trim() === '') return;
     
+    if (isCommandingRef.current) {
+        addLog(`⏳ Menunggu... Perintah lain sedang berjalan.`);
+        // Optional: you can implement a queue, but simple delay for now.
+        await new Promise(res => setTimeout(res, 1000)); 
+    }
+    
     setIsConnecting(true);
     isCommandingRef.current = true; // Lock the network thread
     
@@ -241,6 +256,8 @@ export default function App() {
     
     const sep = path.includes('?') ? '&' : '?';
     const url = `http://${espIp}${path}${sep}t=${Date.now()}`;
+
+    let lastError = "";
 
     for (let i = 0; i < maxRetries; i++) {
         try {
@@ -259,16 +276,19 @@ export default function App() {
                 setIsConnecting(false);
                 isCommandingRef.current = false;
                 return; // Berhasil!
+            } else {
+                lastError = `HTTP ${response.status}`;
             }
-        } catch (error) {
+        } catch (error: any) {
+            lastError = error.message || "Network Error";
             // Tunggu sebentar lalu coba lagi, antisipasi ESP sibuk loop Telegram
-            await new Promise(res => setTimeout(res, 800));
+            await new Promise(res => setTimeout(res, 1000));
         }
     }
     
     isCommandingRef.current = false;
     setIsConnecting(false);
-    addLog(`⚠️ Gagal mengirim: ${path}. ESP32 sibuk.`);
+    addLog(`⚠️ Gagal mengirim: ${path}. (Error: ${lastError})`);
   };
 
   useEffect(() => {
