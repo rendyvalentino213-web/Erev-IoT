@@ -167,7 +167,7 @@ export default function App() {
       
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
         
         const response = await fetch(`http://${espIp}/sync?t=${Date.now()}`, {
           cache: 'no-store',
@@ -236,7 +236,7 @@ export default function App() {
     for (let i = 0; i < maxRetries; i++) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
             
             const response = await fetch(url, {
                 method: 'GET',
