@@ -76,7 +76,7 @@ void enableCORS() {
 void handleRelay() {
   if (server.method() == HTTP_OPTIONS) {
     enableCORS();
-    server.send(204);
+    server.send(200, "text/plain", "ok");
     return;
   }
   
@@ -103,7 +103,7 @@ void handleRelay() {
 void handleAll() {
   if (server.method() == HTTP_OPTIONS) {
     enableCORS();
-    server.send(204);
+    server.send(200, "text/plain", "ok");
     return;
   }
 
@@ -129,7 +129,7 @@ void handleAll() {
 void handleVariasi() {
   if (server.method() == HTTP_OPTIONS) {
     enableCORS();
-    server.send(204);
+    server.send(200, "text/plain", "ok");
     return;
   }
 
@@ -148,7 +148,7 @@ void handleVariasi() {
 void handleStop() {
   if (server.method() == HTTP_OPTIONS) {
     enableCORS();
-    server.send(204);
+    server.send(200, "text/plain", "ok");
     return;
   }
 
@@ -167,7 +167,7 @@ void handleStop() {
 void handleSync() {
   if (server.method() == HTTP_OPTIONS) {
     enableCORS();
-    server.send(204);
+    server.send(200, "text/plain", "ok");
     return;
   }
 
@@ -357,17 +357,23 @@ void setup() {
   bot.sendMessage(CHAT_ID, startupMsg, "");
 
   // Routing URL WebServer untuk Frontend React Web ini
-  server.on("/relay", handleRelay);
-  server.on("/all", handleAll);
-  server.on("/variasi", handleVariasi);
-  server.on("/stop", handleStop);
-  server.on("/sync", handleSync); 
+  server.on("/relay", HTTP_GET, handleRelay);
+  server.on("/relay", HTTP_OPTIONS, handleRelay);
+  server.on("/all", HTTP_GET, handleAll);
+  server.on("/all", HTTP_OPTIONS, handleAll);
+  server.on("/variasi", HTTP_GET, handleVariasi);
+  server.on("/variasi", HTTP_OPTIONS, handleVariasi);
+  server.on("/stop", HTTP_GET, handleStop);
+  server.on("/stop", HTTP_OPTIONS, handleStop);
+  server.on("/sync", HTTP_GET, handleSync);
+  server.on("/sync", HTTP_OPTIONS, handleSync);
+
   
   // Tangani error jika routing tidak ada
   server.onNotFound([]() {
     enableCORS();
     if(server.method() == HTTP_OPTIONS) {
-      server.send(204);
+      server.send(200, "text/plain", "ok");
     } else {
       server.send(404, "text/plain", "Not Found");
     }

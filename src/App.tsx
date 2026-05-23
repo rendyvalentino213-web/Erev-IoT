@@ -268,18 +268,22 @@ export default function App() {
         
         const response = await fetch(url, {
             method: 'GET',
-            mode: 'no-cors', // Pakai no-cors agar menghindari issue OPTIONS Preflight CORS yang sering bikin hang di ESP32
+            mode: 'cors', // CORS diaktifkan agar browser bisa membaca status 200 dan tidak timeout sembarangan
             signal: controller.signal
         });
         clearTimeout(timeoutId);
         
-        // Karena no-cors, response akan 'opaque' dan status = 0. Kita anggap berhasil jika tidak ada error jaringan.
-        success = true;
+        if (response.ok) {
+            success = true;
+        } else {
+            success = false;
+            lastError = `HTTP ${response.status}`;
+        }
     } catch (error: any) {
         const errMsg = String(error.message || error.name || error);
         success = false;
         if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("network") || error.name === "TypeError") {
-            lastError = "DIBLOKIR BROWSER (Mixed Content) atau Beda Jaringan WiFi.";
+            lastError = "DIBLOKIR BROWSER (Mixed Content) atau CORS gagal. Pastikan kode Arduino baru sudah diupload ke ESP32!";
         } else if (errMsg === 'timeout' || error.name === 'AbortError' || errMsg.includes('aborted')) {
             lastError = "Koneksi Timeout (Pastikan HP dan ESP32 di jaringan WiFi yang sama!)";
         } else {
