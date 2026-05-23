@@ -268,17 +268,13 @@ export default function App() {
         
         const response = await fetch(url, {
             method: 'GET',
-            mode: 'cors', // Kembalikan ke cors untuk status HTTP yang jelas
+            mode: 'no-cors', // Pakai no-cors agar menghindari issue OPTIONS Preflight CORS yang sering bikin hang di ESP32
             signal: controller.signal
         });
         clearTimeout(timeoutId);
         
-        if (response.ok) {
-            success = true;
-        } else {
-            success = false;
-            lastError = `HTTP ${response.status}`;
-        }
+        // Karena no-cors, response akan 'opaque' dan status = 0. Kita anggap berhasil jika tidak ada error jaringan.
+        success = true;
     } catch (error: any) {
         const errMsg = String(error.message || error.name || error);
         success = false;
