@@ -67,6 +67,9 @@ export default function App() {
   }, []);
 
   const recognitionRef = useRef<any>(null);
+  
+  // Ref to hold the latest processVoiceCommand (to deal with stale closures in useEffect)
+  const processVoiceCommandRef = useRef<(cmd: string) => void>();
 
   useEffect(() => {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -93,7 +96,7 @@ export default function App() {
         
         // Jeda sedikit agar proses memori/mic di HP selesai sebelum mengirim perintah HTTPS/HTTP
         setTimeout(() => {
-            processVoiceCommand(command);
+            if (processVoiceCommandRef.current) processVoiceCommandRef.current(command);
         }, 200);
       };
       
@@ -156,6 +159,10 @@ export default function App() {
        addLog(`❓ Perintah suara tidak dipahami: "${cmd}"`);
     }
   };
+
+  useEffect(() => {
+    processVoiceCommandRef.current = processVoiceCommand;
+  }, [processVoiceCommand]);
 
   const syncControllerRef = useRef<AbortController | null>(null);
 
