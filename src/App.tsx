@@ -264,11 +264,11 @@ export default function App() {
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort("timeout"), 3000); 
+        const timeoutId = setTimeout(() => controller.abort("timeout"), 8000); 
         
         const response = await fetch(url, {
             method: 'GET',
-            mode: 'cors', // Kembalikan ke cors untuk status yang jelas
+            mode: 'cors', // Kembalikan ke cors untuk status HTTP yang jelas
             signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -283,9 +283,9 @@ export default function App() {
         const errMsg = String(error.message || error.name || error);
         success = false;
         if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("network") || error.name === "TypeError") {
-            lastError = "DIBLOKIR BROWSER (Mixed Content) atau ESP32 Tidak Aktif.";
+            lastError = "DIBLOKIR BROWSER (Mixed Content) atau Beda Jaringan WiFi.";
         } else if (errMsg === 'timeout' || error.name === 'AbortError' || errMsg.includes('aborted')) {
-            lastError = "Koneksi Timeout (Bisa karena IP Salah atau ESP32 Mati)";
+            lastError = "Koneksi Timeout (Pastikan HP dan ESP32 di jaringan WiFi yang sama!)";
         } else {
             lastError = errMsg;
         }
