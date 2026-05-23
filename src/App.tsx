@@ -285,10 +285,26 @@ export default function App() {
         if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("network") || error.name === "TypeError") {
             lastError = "DIBLOKIR BROWSER (Mixed Content) atau CORS gagal. Pastikan kode Arduino baru sudah diupload ke ESP32!";
         } else if (errMsg === 'timeout' || error.name === 'AbortError' || errMsg.includes('aborted')) {
-            lastError = "Koneksi Timeout (Pastikan HP dan ESP32 di jaringan WiFi yang sama!)";
+            lastError = `Koneksi Timeout ke ${espIp}. (Pastikan HP dan ESP32 di jaringan WiFi yang sama!)`;
         } else {
             lastError = errMsg;
         }
+
+        // FALLBACK: Use Image Ping to force a GET request bypassing Fetch CORS/Preflight restrictions
+        try {
+           console.log("Mencoba fallback metode ping untuk:", url);
+           success = await new Promise<boolean>((resolve) => {
+               const img = new Image();
+               const tId = setTimeout(() => resolve(false), 5000);
+               img.onload = () => { clearTimeout(tId); resolve(true); };
+               img.onerror = () => { clearTimeout(tId); resolve(true); }; // 200 OK tapi bukan gambar = Masuk kesini, artinya berhasil!
+               img.src = url;
+           });
+           if (success) {
+               lastError = ""; // Berhasil via fallback!
+               console.log("Fallback ping berhasil!");
+           }
+        } catch (e) {}
     }
     
     isCommandingRef.current = false;
@@ -296,10 +312,10 @@ export default function App() {
     
     if (!success) {
       if (lastError.includes("Mixed Content")) {
-         addLog(`🔒 AKSES DIBLOKIR BROWSER. Karena web berbasis HTTPS, browser menolak akses ke IP Lokal (HTTP).`);
+         addLog(`🔒 AKSES DIBLOKIR BROWSER ke ${espIp}. Karena web berbasis HTTPS, browser menolak akses ke IP Lokal (HTTP).`);
          addLog(`🛠️ CARA FIX KHUSUS CHROME: Klik iKON GEMBOK 🔒 di samping URL -> Site Settings -> Ubah Insecure Content menjadi Allow -> Reload halaman.`);
       } else {
-         addLog(`⚠️ Gagal mengirim perintah: ${path}. (${lastError})`);
+         addLog(`⚠️ Gagal mengirim perintah: ${path} ke ${espIp}. (${lastError})`);
       }
     }
     return success;
