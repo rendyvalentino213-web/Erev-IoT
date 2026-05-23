@@ -135,7 +135,17 @@ export default function App() {
 
   const processVoiceCommand = (cmd: string) => {
     let handled = false;
-    if (cmd.includes('nyala') || cmd.includes('hidup') || cmd.includes('on')) {
+    
+    // Check for variasi first so "nyala variasi 1" doesn't trigger "nyala lampu 1"
+    if (cmd.includes('variasi 1') || cmd.includes('variasi satu')) {
+        startVariasi(1); handled = true;
+    } else if (cmd.includes('variasi 2') || cmd.includes('variasi dua')) {
+        startVariasi(2); handled = true;
+    } else if (cmd.includes('stop') || cmd.includes('berhenti')) {
+        stopVariasi(); handled = true;
+    } 
+    // Then check for regular relays
+    else if (cmd.includes('nyala') || cmd.includes('hidup') || cmd.includes('on')) {
         if (cmd.includes('semua')) { setAll(true); handled = true; }
         else if (cmd.includes('satu') || cmd.includes('1')) { toggleRelay(1, true); handled = true; }
         else if (cmd.includes('dua') || cmd.includes('2')) { toggleRelay(2, true); handled = true; }
@@ -147,12 +157,6 @@ export default function App() {
         else if (cmd.includes('dua') || cmd.includes('2')) { toggleRelay(2, false); handled = true; }
         else if (cmd.includes('tiga') || cmd.includes('3')) { toggleRelay(3, false); handled = true; }
         else if (cmd.includes('empat') || cmd.includes('4')) { toggleRelay(4, false); handled = true; }
-    } else if (cmd.includes('variasi 1') || cmd.includes('variasi satu')) {
-        startVariasi(1); handled = true;
-    } else if (cmd.includes('variasi 2') || cmd.includes('variasi dua')) {
-        startVariasi(2); handled = true;
-    } else if (cmd.includes('stop') || cmd.includes('berhenti')) {
-        stopVariasi(); handled = true;
     }
     
     if (!handled) {
