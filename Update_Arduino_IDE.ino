@@ -66,11 +66,20 @@ void enableCORS() {
   server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS, POST, PUT");
   server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Cache-Control, Access-Control-Request-Private-Network");
   server.sendHeader("Access-Control-Allow-Private-Network", "true");
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.sendHeader("Pragma", "no-cache");
+  server.sendHeader("Expires", "0");
   server.sendHeader("Connection", "close"); // Force connection close to free sockets
 }
 
 // Handler untuk komunikasi Website -> ESP32
 void handleRelay() {
+  if (server.method() == HTTP_OPTIONS) {
+    enableCORS();
+    server.send(204);
+    return;
+  }
+  
   enableCORS();
   if (server.hasArg("id") && server.hasArg("state")) {
     int id = server.arg("id").toInt();
@@ -85,13 +94,19 @@ void handleRelay() {
     else if (id == 3) { relay3State = state; digitalWrite(RELAY3, relay3State); }
     else if (id == 4) { relay4State = state; digitalWrite(RELAY4, relay4State); }
     
-    server.send(204); // 204 No Content agar browser tidak menunggu body
+    server.send(200, "application/json", "{\"status\":\"ok\"}"); 
   } else {
     server.send(400, "text/plain", "Bad Request");
   }
 }
 
 void handleAll() {
+  if (server.method() == HTTP_OPTIONS) {
+    enableCORS();
+    server.send(204);
+    return;
+  }
+
   enableCORS();
   if (server.hasArg("state")) {
     String stateStr = server.arg("state");
@@ -105,26 +120,38 @@ void handleAll() {
     digitalWrite(RELAY2, state);
     digitalWrite(RELAY3, state);
     digitalWrite(RELAY4, state);
-    server.send(204);
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
     server.send(400, "text/plain", "Bad Request");
   }
 }
 
 void handleVariasi() {
+  if (server.method() == HTTP_OPTIONS) {
+    enableCORS();
+    server.send(204);
+    return;
+  }
+
   enableCORS();
   if (server.hasArg("mode")) {
     variasiMode = server.arg("mode").toInt();
     variasiRunning = true;
     variasiStep = 0;
     lastVariasiTime = millis();
-    server.send(204);
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
     server.send(400, "text/plain", "Bad Request");
   }
 }
 
 void handleStop() {
+  if (server.method() == HTTP_OPTIONS) {
+    enableCORS();
+    server.send(204);
+    return;
+  }
+
   enableCORS();
   variasiRunning = false;
   variasiMode = 0;
@@ -134,10 +161,16 @@ void handleStop() {
   digitalWrite(RELAY2, HIGH);
   digitalWrite(RELAY3, HIGH);
   digitalWrite(RELAY4, HIGH);
-  server.send(204);
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
 void handleSync() {
+  if (server.method() == HTTP_OPTIONS) {
+    enableCORS();
+    server.send(204);
+    return;
+  }
+
   enableCORS();
   
   // Data DHT11 diambil dari variabel global secara instant (Tanpa menyebabkan blok)
@@ -270,13 +303,17 @@ void runVariasi2() {
 // Task FreeRTOS Telegram di Core 0 agar tidak mengganggu Web/Variasi pada Core 1
 void telegramTask(void * pvParameters) {
   for(;;) {
-    if (millis() > lastTimeBotRan + botRequestDelay)  {
-      int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-      while(numNewMessages) {
-        handleNewMessages(numNewMessages);
-        numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+    if (WiFi.status() == WL_CONNECTED) {
+      if (millis() > lastTimeBotRan + botRequestDelay)  {
+        int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+        while(numNewMessages) {
+          handleNewMessages(numNewMessages);
+          numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+        }
+        lastTimeBotRan = millis();
       }
-      lastTimeBotRan = millis();
+    } else {
+      vTaskDelay(5000 / portTICK_PERIOD_MS); // Wait 5s sebelum retry jika disconnect
     }
     vTaskDelay(10 / portTICK_PERIOD_MS); // Yield ke idle task supaya watchdog tidak error
   }
@@ -320,11 +357,11 @@ void setup() {
   bot.sendMessage(CHAT_ID, startupMsg, "");
 
   // Routing URL WebServer untuk Frontend React Web ini
-  server.on("/relay", HTTP_GET, handleRelay);
-  server.on("/all", HTTP_GET, handleAll);
-  server.on("/variasi", HTTP_GET, handleVariasi);
-  server.on("/stop", HTTP_GET, handleStop);
-  server.on("/sync", HTTP_GET, handleSync); 
+  server.on("/relay", handleRelay);
+  server.on("/all", handleAll);
+  server.on("/variasi", handleVariasi);
+  server.on("/stop", handleStop);
+  server.on("/sync", handleSync); 
   
   // Tangani error jika routing tidak ada
   server.onNotFound([]() {
