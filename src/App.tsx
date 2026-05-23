@@ -424,34 +424,34 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-[#CD5050] selection:text-white pb-12">
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white sticky top-0 z-10 shadow-sm">
+      <header className="border-b border-gray-900 bg-gray-950 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-[#CD5050]/10 rounded-xl">
+            <div className="p-3 bg-[#CD5050]/20 rounded-xl">
               <Cpu className="w-6 h-6 text-[#CD5050]" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-gray-900">ESP32 Controller</h1>
+              <h1 className="text-xl font-bold tracking-tight text-white">Erev IoT</h1>
             </div>
           </div>
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center w-full md:w-auto gap-3">
-            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-1.5 focus-within:border-[#CD5050] focus-within:ring-2 focus-within:ring-[#CD5050]/20 transition-all">
-              <Link className="w-4 h-4 text-gray-400 mr-2" />
+            <div className="flex items-center bg-gray-900 border border-gray-800 rounded-full px-4 py-1.5 focus-within:border-[#CD5050] focus-within:ring-2 focus-within:ring-[#CD5050]/20 transition-all">
+              <Link className="w-4 h-4 text-gray-500 mr-2" />
               <input 
                 type="text" 
                 value={espIp}
                 onChange={(e) => setEspIp(e.target.value)}
                 placeholder="IP ESP32 (ex: 192.168.1.100)"
-                className="bg-transparent border-none outline-none text-sm font-medium text-gray-700 w-44"
+                className="bg-transparent border-none outline-none text-sm font-medium text-gray-200 placeholder-gray-600 w-44"
               />
             </div>
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${isConnecting ? 'bg-orange-50 border-orange-100' : 'bg-gray-50 border-gray-100'}`}>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${isConnecting ? 'bg-orange-950/50 border-orange-900' : 'bg-gray-900 border-gray-800'}`}>
               <span className="relative flex h-3 w-3">
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${variasiMode !== 0 ? 'bg-purple-500' : 'bg-[#CD5050]'}`}></span>
                 <span className={`relative inline-flex rounded-full h-3 w-3 ${variasiMode !== 0 ? 'bg-purple-500' : 'bg-[#CD5050]'}`}></span>
               </span>
-              <span className="text-xs font-semibold text-gray-700 tracking-wide whitespace-nowrap">
+              <span className="text-xs font-semibold text-gray-300 tracking-wide whitespace-nowrap">
                 {isConnecting ? 'MENGIRIM...' : variasiMode === 1 ? 'VARIASI 1 JALAN' : variasiMode === 2 ? 'VARIASI 2 JALAN' : 'Sistem Siap'}
               </span>
             </div>

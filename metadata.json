@@ -1,6 +1,6 @@
 {
-  "name": "ESP32 Relay Controller",
+  "name": "Erev IoT",
   "description": "Web interface to control 4 relays on an ESP32.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
