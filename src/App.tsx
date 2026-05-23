@@ -165,23 +165,31 @@ export default function App() {
     let syncTimer: NodeJS.Timeout;
 
     const fetchSync = async () => {
+      // Jika tab tidak aktif, jangan polling untuk menghemat resource ESP32
+      if (document.hidden) {
+        if (isMounted) syncTimer = setTimeout(fetchSync, 3000);
+        return;
+      }
+
       // Jika sedang mengirim perintah, skip polling agar tidak tabrakan di single-thread ESP32
       if (isCommandingRef.current) {
-        if (isMounted) syncTimer = setTimeout(fetchSync, 1000);
+        if (isMounted) syncTimer = setTimeout(fetchSync, 1500);
         return;
       }
         
       if (!espIp || espIp.trim() === '') {
-        if (isMounted) syncTimer = setTimeout(fetchSync, 1500);
+        if (isMounted) syncTimer = setTimeout(fetchSync, 3000);
         return;
       }
       
       try {
         const controller = new AbortController();
         syncControllerRef.current = controller;
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
         
         const response = await fetch(`http://${espIp}/sync?t=${Date.now()}`, {
+          method: 'GET',
+          // Tidak bisa pakai no-cors untuk sync karena kita butuh baca balik JSON-nya
           signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -223,7 +231,7 @@ export default function App() {
       } catch (e) {
         // Silent fail for polling errors
       } finally {
-        if (isMounted) syncTimer = setTimeout(fetchSync, 2000); // Wait 2s to give ESP room
+        if (isMounted) syncTimer = setTimeout(fetchSync, 4000); // Polling tiap 4 detik agar ESP32 tidak hang!
       }
     };
 
@@ -268,43 +276,23 @@ export default function App() {
         
         const response = await fetch(url, {
             method: 'GET',
-            mode: 'cors', // CORS diaktifkan agar browser bisa membaca status 200 dan tidak timeout sembarangan
+            mode: 'no-cors', // Mencegah browser mengirimkan OPTIONS preflight yang membebani ESP32
             signal: controller.signal
         });
         clearTimeout(timeoutId);
         
-        if (response.ok) {
-            success = true;
-        } else {
-            success = false;
-            lastError = `HTTP ${response.status}`;
-        }
+        // no-cors fetch will always return type: "opaque" and status: 0 if successful (no network error)
+        success = true;
     } catch (error: any) {
         const errMsg = String(error.message || error.name || error);
         success = false;
         if (errMsg.toLowerCase().includes("fetch") || errMsg.toLowerCase().includes("network") || error.name === "TypeError") {
-            lastError = "DIBLOKIR BROWSER (Mixed Content) atau CORS gagal. Pastikan kode Arduino baru sudah diupload ke ESP32!";
+            lastError = "Koneksi Gagal (Mungkin diblokir browser atau ESP32 Sibuk).";
         } else if (errMsg === 'timeout' || error.name === 'AbortError' || errMsg.includes('aborted')) {
             lastError = `Koneksi Timeout ke ${espIp}. (Pastikan HP dan ESP32 di jaringan WiFi yang sama!)`;
         } else {
             lastError = errMsg;
         }
-
-        // FALLBACK: Use Image Ping to force a GET request bypassing Fetch CORS/Preflight restrictions
-        try {
-           console.log("Mencoba fallback metode ping untuk:", url);
-           success = await new Promise<boolean>((resolve) => {
-               const img = new Image();
-               const tId = setTimeout(() => resolve(false), 5000);
-               img.onload = () => { clearTimeout(tId); resolve(true); };
-               img.onerror = () => { clearTimeout(tId); resolve(true); }; // 200 OK tapi bukan gambar = Masuk kesini, artinya berhasil!
-               img.src = url;
-           });
-           if (success) {
-               lastError = ""; // Berhasil via fallback!
-               console.log("Fallback ping berhasil!");
-           }
-        } catch (e) {}
     }
     
     isCommandingRef.current = false;
@@ -475,6 +463,20 @@ export default function App() {
             </div>
           </div>
         )}
+
+        <div className="mb-6 bg-[#CD5050]/5 border border-[#CD5050]/20 p-4 rounded-2xl flex items-start gap-4">
+            <AlertCircle className="w-6 h-6 text-[#CD5050] mt-0.5 shrink-0" />
+            <div>
+                <h3 className="text-sm font-bold text-red-900">Penting: Masalah "Gagal/Timeout" di HP (Mixed Content)</h3>
+                <p className="text-sm text-red-800 mt-1">
+                    Jika Anda menekan tombol di HP/Laptop dan perintah sering GAGAL atau kadang-kadang saja (lampu tidak hidup, atau hanya masuk Telegram), ini KARENA <b>Browser HP (Chrome/Safari) memblokir aplikasi keamanan web modern (HTTPS) untuk menyalakan perangkat lokal (HTTP IP ESP32) secara langsung.</b> 
+                    <br/><br/>
+                    <b>Pilihan Solusi:</b>
+                    <br/>👉 <b>Di PC/Laptop Chrome:</b> Klik ikon GEMBOK 🔒 di samping kolom URL Google Chrome Anda {`->`} Site Settings {`->`} Ubah Insecure Content menjadi <b>Allow</b>, lalu Reload halamannya.
+                    <br/>👉 <b>Di Smartphone/HP:</b> Browser HP (Chrome iOS/Android) sangat ketat dan sering menolak request. Anda lebih disarankan untuk menggunakan PC/Laptop ATAU langsung chat dan gunakan tombol di <b>Telegram Bot</b> jika web mengalami gagal.
+                </p>
+            </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           
