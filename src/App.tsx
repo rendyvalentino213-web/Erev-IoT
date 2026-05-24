@@ -461,33 +461,6 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {espIp === '192.168.1.100' && (
-          <div className="mb-6 bg-orange-50 border border-orange-200 p-4 rounded-2xl flex items-start gap-4">
-            <AlertCircle className="w-6 h-6 text-orange-500 mt-0.5 shrink-0" />
-            <div>
-              <h3 className="text-sm font-bold text-orange-900">Perhatian: IP Address Belum Diubah!</h3>
-              <p className="text-sm text-orange-800 mt-1">
-                <code>192.168.1.100</code> adalah IP Address bawaan (default). Jika WiFi Anda tidak menggunakan IP ini, <b>tombol web tidak akan berfungsi</b> dan hanya akan loading gagal.
-                <br/><br/>
-                <b>Solusi:</b> Silakan cek notifikasi aplikasi <b>Telegram</b> Anda saat ESP32 pertama kali dihidupkan untuk melihat IP Address aslinya (contoh: <code>172.x.x.x</code> atau <code>192.x.x.x</code>), lalu masukkan ke kolom input IP di atas agar web terhubung ke hardware.
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="mb-6 bg-[#CD5050]/5 border border-[#CD5050]/20 p-4 rounded-2xl flex items-start gap-4">
-            <AlertCircle className="w-6 h-6 text-[#CD5050] mt-0.5 shrink-0" />
-            <div>
-                <h3 className="text-sm font-bold text-red-900">Penting: Masalah "Gagal/Timeout" di HP (Mixed Content)</h3>
-                <p className="text-sm text-red-800 mt-1">
-                    Jika Anda menekan tombol di HP/Laptop dan perintah sering GAGAL atau kadang-kadang saja (lampu tidak hidup, atau hanya masuk Telegram), ini KARENA <b>Browser HP (Chrome/Safari) memblokir aplikasi keamanan web modern (HTTPS) untuk menyalakan perangkat lokal (HTTP IP ESP32) secara langsung.</b> 
-                    <br/><br/>
-                    <b>Pilihan Solusi:</b>
-                    <br/>👉 <b>Di PC/Laptop Chrome:</b> Klik ikon GEMBOK 🔒 di samping kolom URL Google Chrome Anda {`->`} Site Settings {`->`} Ubah Insecure Content menjadi <b>Allow</b>, lalu Reload halamannya.
-                    <br/>👉 <b>Di Smartphone/HP:</b> Browser HP (Chrome iOS/Android) sangat ketat dan sering menolak request. Anda lebih disarankan untuk menggunakan PC/Laptop ATAU langsung chat dan gunakan tombol di <b>Telegram Bot</b> jika web mengalami gagal.
-                </p>
-            </div>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           

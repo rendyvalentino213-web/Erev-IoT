@@ -265,6 +265,53 @@ void handleNewMessages(int numNewMessages) {
       relay1State = relay2State = relay3State = relay4State = HIGH;
       digitalWrite(RELAY1, HIGH); digitalWrite(RELAY2, HIGH); digitalWrite(RELAY3, HIGH); digitalWrite(RELAY4, HIGH);
     }
+    
+    // Natural Language Voice Command Parsing via Telegram Keyboard Dictation
+    // Skip command text like "/lampu1_on"
+    if (text.length() > 0 && text.charAt(0) != '/') {
+      String cmd = text;
+      cmd.toLowerCase();
+      
+      if (cmd.indexOf("nyala") >= 0 || cmd.indexOf("hidup") >= 0 || cmd.indexOf("on") >= 0) {
+        if (cmd.indexOf("variasi 1") >= 0 || cmd.indexOf("variasi satu") >= 0) {
+          variasiRunning = true; variasiMode = 1; variasiStep = 0; lastVariasiTime = millis();
+          bot.sendMessage(chat_id, "✅ Variasi 1 AKTIF (Voice Command)", "");
+        } else if (cmd.indexOf("variasi 2") >= 0 || cmd.indexOf("variasi dua") >= 0) {
+          variasiRunning = true; variasiMode = 2; variasiStep = 0; lastVariasiTime = millis();
+          bot.sendMessage(chat_id, "✅ Variasi 2 AKTIF (Voice Command)", "");
+        } else if (cmd.indexOf("semua") >= 0) {
+          variasiRunning = false; variasiMode = 0; bot.sendMessage(chat_id, "Semua Lampu NYALA (Voice Command)", "");
+          relay1State = relay2State = relay3State = relay4State = LOW;
+          digitalWrite(RELAY1, LOW); digitalWrite(RELAY2, LOW); digitalWrite(RELAY3, LOW); digitalWrite(RELAY4, LOW);
+        } else if (cmd.indexOf("satu") >= 0 || cmd.indexOf("1") >= 0) {
+          variasiRunning = false; variasiMode = 0; relay1State = LOW; digitalWrite(RELAY1, LOW); bot.sendMessage(chat_id, "Lampu 1 NYALA (Voice Command)", "");
+        } else if (cmd.indexOf("dua") >= 0 || cmd.indexOf("2") >= 0) {
+          variasiRunning = false; variasiMode = 0; relay2State = LOW; digitalWrite(RELAY2, LOW); bot.sendMessage(chat_id, "Lampu 2 NYALA (Voice Command)", "");
+        } else if (cmd.indexOf("tiga") >= 0 || cmd.indexOf("3") >= 0) {
+          variasiRunning = false; variasiMode = 0; relay3State = LOW; digitalWrite(RELAY3, LOW); bot.sendMessage(chat_id, "Lampu 3 NYALA (Voice Command)", "");
+        } else if (cmd.indexOf("empat") >= 0 || cmd.indexOf("4") >= 0) {
+          variasiRunning = false; variasiMode = 0; relay4State = LOW; digitalWrite(RELAY4, LOW); bot.sendMessage(chat_id, "Lampu 4 NYALA (Voice Command)", "");
+        }
+      } else if (cmd.indexOf("mati") >= 0 || cmd.indexOf("off") >= 0 || cmd.indexOf("stop") >= 0 || cmd.indexOf("berhenti") >= 0) {
+        if (cmd.indexOf("variasi") >= 0 || cmd.indexOf("stop") >= 0 || cmd.indexOf("berhenti") >= 0) {
+          variasiRunning = false; variasiMode = 0; bot.sendMessage(chat_id, "⛔ Variasi DIHENTIKAN (Voice Command)", "");
+          relay1State = relay2State = relay3State = relay4State = HIGH;
+          digitalWrite(RELAY1, HIGH); digitalWrite(RELAY2, HIGH); digitalWrite(RELAY3, HIGH); digitalWrite(RELAY4, HIGH);
+        } else if (cmd.indexOf("semua") >= 0) {
+          variasiRunning = false; variasiMode = 0; bot.sendMessage(chat_id, "Semua Lampu MATI (Voice Command)", "");
+          relay1State = relay2State = relay3State = relay4State = HIGH;
+          digitalWrite(RELAY1, HIGH); digitalWrite(RELAY2, HIGH); digitalWrite(RELAY3, HIGH); digitalWrite(RELAY4, HIGH);
+        } else if (cmd.indexOf("satu") >= 0 || cmd.indexOf("1") >= 0) {
+          variasiRunning = false; variasiMode = 0; relay1State = HIGH; digitalWrite(RELAY1, HIGH); bot.sendMessage(chat_id, "Lampu 1 MATI (Voice Command)", "");
+        } else if (cmd.indexOf("dua") >= 0 || cmd.indexOf("2") >= 0) {
+          variasiRunning = false; variasiMode = 0; relay2State = HIGH; digitalWrite(RELAY2, HIGH); bot.sendMessage(chat_id, "Lampu 2 MATI (Voice Command)", "");
+        } else if (cmd.indexOf("tiga") >= 0 || cmd.indexOf("3") >= 0) {
+          variasiRunning = false; variasiMode = 0; relay3State = HIGH; digitalWrite(RELAY3, HIGH); bot.sendMessage(chat_id, "Lampu 3 MATI (Voice Command)", "");
+        } else if (cmd.indexOf("empat") >= 0 || cmd.indexOf("4") >= 0) {
+          variasiRunning = false; variasiMode = 0; relay4State = HIGH; digitalWrite(RELAY4, HIGH); bot.sendMessage(chat_id, "Lampu 4 MATI (Voice Command)", "");
+        }
+      }
+    }
   }
 }
 
